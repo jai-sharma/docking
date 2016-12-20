@@ -1,0 +1,137 @@
+#!/bin/bash
+
+## Docking bash script ##
+main() {
+
+	# Check current dock status
+	DOCK_PATH=$(get_path)
+	echo $DOCK_PATH
+	DOCK_FILE=$DOCK_PATH/dockfile
+	if [ -e $DOCK_FILE ]
+	then
+		STATUS=1
+	else
+		STATUS=0
+	fi
+	
+	# Check if given argument
+	if [ -z $1 ]
+	then
+		usage
+	fi
+	
+	# Given argument "on"
+	if [ $1 == "on" ]
+	then
+		# Not already docked
+		if [ $STATUS -eq  0 ]
+		then
+			dock_on
+		else
+			msg_and_quit "Already in dockmode"
+		fi
+	fi
+
+	# Given argument "off"
+	if [ $1 == "off" ]
+	then
+		# Not already docked
+		if [ $STATUS -eq 0 ]
+		then
+			msg_and_quit "Already undocked"
+		else
+			dock_off
+		fi
+	fi
+
+	# If neither of the previous tests work then wrong input argument
+	usage
+}
+
+usage() {
+	msg_and_quit "Usage: dock [on/off]"
+}
+
+dock_on() {
+	## Ensure the laptop is plugged in ##
+
+	# Path to file that is 1 when plugged in
+	CHRGR_PATH=/sys/class/power_supply/ADP1/online
+	# Read file into variable
+	read -r CHRGR_STATUS < $CHRGR_PATH
+	# Test variable or exit
+	if [ $CHRGR_STATUS -lt 1 ]
+	then
+		msg_and_quit "Laptop not plugged in"
+	fi
+
+	## Ensure external display is connected ##
+
+	# Path to HDMI file
+	HDMI_PATH=/sys/class/drm/card0-HDMI-A-1/status
+	# Read file into variable
+	read -r HDMI_STATUS < $HDMI_PATH
+	#Test variable or exit
+	if [ $HDMI_STATUS == "disconnected" ]
+	then
+		msg_and_quit "External display not connected"
+	fi
+
+	## Switch to external display only ##
+	INTERN=eDP1
+	EXTERN=HDMI1
+	xrandr --output $INTERN --off --output $EXTERN --auto
+
+	## Set dockfile and prevent sleep on laptop lid shut ##
+	DOCK_PATH=$(get_path)
+
+	# Use is_docked.sh as the systemd-inhibit target program
+	# is_docked.sh requires path to existing file as single argument (DOCKFILE)
+	# When dockfile is deleted, is_docked.sh will exit and stop systemd-inhibit
+	# is_docked.sh should run for the lifetime of being docked
+	DOCK_FILE=$DOCK_PATH/dockfile
+	DOCK_EXE=$DOCK_PATH/is_docked.sh
+
+	# Create the required file for is_docked.sh to check
+	touch $DOCK_FILE
+
+	# Inhibit suspend using systemd-inhibit
+	systemd-inhibit --why="Dockmode" --mode=block $DOCK_EXE $DOCK_FILE
+}
+
+dock_off() {
+
+	## Remove the dock file
+	# This disables systemd-inhibit
+	DOCK_PATH=$(get_path)
+	DOCKFILE=$DOCK_PATH/dockfile
+	rm -f $DOCKFILE
+
+	## Restore display
+	EXTERN=HDMI1
+	INTERN=eDP1
+	xrandr --output $EXTERN --off --output $INTERN --auto
+}
+
+msg_and_quit() {
+	i3-nagbar -m "$1" > /dev/null
+	exit 0
+}
+
+get_path() {
+
+	# Get absolute path of the location of the executable script
+	# Resolves any symlinks to this executable
+	# http://stackoverflow.com/questions/59895/getting-the-current-present-working-directory-of-a-bash-script-from-within-the-s
+
+	SOURCE="${BASH_SOURCE[0]}"
+	while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+		DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+		SOURCE="$(readlink "$SOURCE")"
+		[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+	done
+	echo $( cd -P "$( dirname "$SOURCE" )" && pwd )
+}
+
+# Call main with all given args
+main $@

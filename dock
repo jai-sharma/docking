@@ -101,6 +101,8 @@ dock_on() {
 
 	# Inhibit suspend using systemd-inhibit
 	systemd-inhibit --why="Dockmode" --mode=block $DOCK_EXE $DOCK_FILE
+
+	exit 0
 }
 
 dock_off() {
@@ -118,6 +120,8 @@ dock_off() {
 
 	# Run the reset wallpaper function
 	reset_wallpaper
+
+	exit 0
 }
 
 msg_and_quit() {
@@ -144,7 +148,7 @@ reset_wallpaper() {
 
 	## Re-run the .fehbg script to ensure the wallpaper scales correctly
 	FEHBG_PATH=~/.fehbg
-	$(FEHBG_PATH)
+	eval $FEHBG_PATH
 }
 
 # Call main with all given args

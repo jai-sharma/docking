@@ -26,6 +26,9 @@ external display is plugged in.
 
 The script uses `xrandr` to manage displays.
 
+The script runs a script located at `~/.fehbg` to reset the wallpaper scale
+on dock/undock.
+
 The script will create the `dockfile` and pass it to `is_docked.sh` which will
 run until the `dockfile` is deleted. The script will run `systemd-inhibit` to 
 prevent the laptop from sleeping when the lid is closed. `systemd-inhibit` 

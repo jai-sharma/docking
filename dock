@@ -82,6 +82,10 @@ dock_on() {
 	EXTERN=HDMI1
 	xrandr --output $INTERN --off --output $EXTERN --auto
 
+
+	# Run the reset wallpaper function
+	reset_wallpaper
+
 	## Set dockfile and prevent sleep on laptop lid shut ##
 	DOCK_PATH=$(get_path)
 
@@ -111,6 +115,9 @@ dock_off() {
 	EXTERN=HDMI1
 	INTERN=eDP1
 	xrandr --output $EXTERN --off --output $INTERN --auto
+
+	# Run the reset wallpaper function
+	reset_wallpaper
 }
 
 msg_and_quit() {
@@ -131,6 +138,13 @@ get_path() {
 		[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
 	done
 	echo $( cd -P "$( dirname "$SOURCE" )" && pwd )
+}
+
+reset_wallpaper() {
+
+	## Re-run the .fehbg script to ensure the wallpaper scales correctly
+	FEHBG_PATH=~/.fehbg
+	$(FEHBG_PATH)
 }
 
 # Call main with all given args
